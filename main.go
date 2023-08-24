@@ -1,6 +1,15 @@
 package main
 
-/*var upgrader = websocket.Upgrader{
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/gorilla/websocket"
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
+)
+
+var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
@@ -33,13 +42,14 @@ func main() {
 		}
 
 		fmt.Println("ChatGPT Response:", chatResponse)
-
+	*/
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Logger())
-	e.GET("/", func(c echo.Context) error {
-		return c.File("web/index.html")
-	})
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		Root:   "static",
+		Browse: true,
+	}))
 	e.GET("/ws", handleWebSocket)
 	e.Start(":8080")
 }
@@ -67,43 +77,4 @@ func handleWebSocket(c echo.Context) error {
 	}
 
 	return nil
-}*/
-
-import (
-	"fmt"
-	"net/http"
-
-	"github.com/gorilla/websocket"
-)
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		return
-	}
-	defer conn.Close()
-
-	for {
-		messageType, p, err := conn.ReadMessage()
-		if err != nil {
-			fmt.Println(err, len(p), messageType)
-			return
-		}
-
-		fmt.Printf("received %d bytes, type: %d ", len(p), messageType)
-	}
-}
-
-func main() {
-	http.HandleFunc("/ws", handleWebSocket)
-	http.Handle("/", http.FileServer(http.Dir("static")))
-	http.ListenAndServe("0.0.0.0:8080", nil)
 }
