@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	cloud.google.com/go/speech v1.19.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/sashabaranov/go-openai v1.14.2

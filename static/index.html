@@ -2,13 +2,13 @@
 <html>
 <head>
     <title>Audio Recorder</title>
+    <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
     <h1>Audio Recorder</h1>
     
     <button id="startButton">Start Recording</button>
-    <button id="stopButton" disabled>Stop Recording</button>
-
+    <button id="stopButton" disabled>Stop Recording</button>  
     <script>
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
@@ -16,11 +16,19 @@
         let mediaRecorder;
         let audioChunks = [];
 
+        const constraints = {
+            audio: {
+                sampleRate: 16000, // Set the desired audio sample rate (Hz)
+                channelCount: 1,   // Set the desired number of audio channels
+                echoCancellation: true // Enable echo cancellation if supported
+            }
+        };
+
         startButton.addEventListener('click', async () => {
             console.log('Starting recording...');
             
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 mediaRecorder = new MediaRecorder(stream);
 
                 mediaRecorder.ondataavailable = event => {

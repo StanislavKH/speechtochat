@@ -1,9 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -57,24 +60,40 @@ func main() {
 func handleWebSocket(c echo.Context) error {
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
-		fmt.Println("WebSocket upgrade error:", err)
+		log.Println("WebSocket upgrade error:", err)
 		return err
 	}
 	defer conn.Close()
 
-	fmt.Println("WebSocket connection established")
+	log.Println("WebSocket connection established")
 
 	for {
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Println("WebSocket read error:", err)
+			if err == io.EOF {
+				log.Println("Client disconnected")
+				return nil
+			}
+			log.Println("WebSocket read error:", err)
 			break
 		}
+		// Process audio chunk here, e.g., save to a file or analyze
 		if messageType == websocket.BinaryMessage {
-			fmt.Println("Received audio chunk:", len(p), "bytes")
-			// Process audio chunk here, e.g., save to a file or analyze
+			fileId := getUUID()
+			log.Println("Received audio chunk:", len(p), "bytes")
+			err = ioutil.WriteFile("sampleaudio/"+fileId+".wav", p, 0644)
+			if err != nil {
+				log.Println("Error writing audio file:", err)
+				continue
+			}
+			log.Printf("Audio saved with ID: %s\n", fileId)
 		}
 	}
 
 	return nil
+}
+
+func getUUID() string {
+	newUUID := uuid.New()
+	return newUUID.String()
 }
