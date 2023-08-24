@@ -39,7 +39,6 @@
                     ws.onopen = () => {
                         console.log('WebSocket connection opened. Sending audio data...');
                         ws.send(audioBlob);
-                        ws.close();
                         console.log('Audio data sent.');
                     };
 
