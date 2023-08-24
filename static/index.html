@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Recorder</title>
+</head>
+<body>
+    <h1>Audio Recorder</h1>
+    
+    <button id="startButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+
+    <script>
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        startButton.addEventListener('click', async () => {
+            console.log('Starting recording...');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    console.log('Recording stopped.');
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+
+                    // Send the audio blob to the server via WebSocket
+                    const ws = new WebSocket('ws://localhost:8080/ws');
+                    ws.onopen = () => {
+                        console.log('WebSocket connection opened. Sending audio data...');
+                        ws.send(audioBlob);
+                        ws.close();
+                        console.log('Audio data sent.');
+                    };
+
+                    audioChunks = [];
+                };
+
+                mediaRecorder.start();
+                startButton.disabled = true;
+                stopButton.disabled = false;
+
+                console.log('Recording started.');
+            } catch (error) {
+                console.error('Error starting recording:', error);
+            }
+        });
+
+        stopButton.addEventListener('click', () => {
+            console.log('Stopping recording...');
+            mediaRecorder.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        });
+    </script>
+</body>
+</html>
