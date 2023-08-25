@@ -11,6 +11,7 @@ import (
 )
 
 type StcService struct {
+	ctx          context.Context
 	SpeechClient *speech.Client
 	ChatClient   *openai.Client
 }
@@ -22,12 +23,13 @@ func NewStcService(ctx context.Context, speechKeyFilePath, openAIKey string) (*S
 	}
 	chatClient := openai.NewClient(openAIKey)
 	return &StcService{
+		ctx:          ctx,
 		SpeechClient: speechClient,
 		ChatClient:   chatClient,
 	}, nil
 }
 
-func (stc *StcService) TranscribeAudio(ctx context.Context, audioFilePath string) (string, error) {
+func (stc *StcService) TranscribeAudio(audioFilePath string) (string, error) {
 	// Read the audio file
 	audioData, err := ioutil.ReadFile(audioFilePath)
 	if err != nil {
@@ -47,7 +49,7 @@ func (stc *StcService) TranscribeAudio(ctx context.Context, audioFilePath string
 	}
 
 	// Perform the recognition
-	resp, err := stc.SpeechClient.Recognize(ctx, req)
+	resp, err := stc.SpeechClient.Recognize(stc.ctx, req)
 	if err != nil {
 		return "", err
 	}
@@ -60,9 +62,9 @@ func (stc *StcService) TranscribeAudio(ctx context.Context, audioFilePath string
 	return "", nil
 }
 
-func (stc *StcService) SendChatRequest(ctx context.Context, transcript string) (string, error) {
+func (stc *StcService) SendChatRequest(transcript string) (string, error) {
 	resp, err := stc.ChatClient.CreateChatCompletion(
-		context.Background(),
+		stc.ctx,
 		openai.ChatCompletionRequest{
 			Model: openai.GPT3Dot5Turbo,
 			Messages: []openai.ChatCompletionMessage{

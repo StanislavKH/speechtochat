@@ -1,16 +1,23 @@
 package main
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
+	"github.com/StanislavKH/speechtochat/internal/stcsvc"
+	"github.com/StanislavKH/speechtochat/pkg/stc"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
+
+var stcService *stc.StcService
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -21,31 +28,17 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
-	// Replace with the path to your JSON key file
-	//keyFilePath := "keyfile.json"
-	// Replace with your ChatGPT API key
-	//chatGPTAPIKey := ""
+	var err error
+	keyFilePath := "keyfile.json"
+	chatGPTAPIKey := ""
 
-	/*
-		ctx := context.Background()
+	ctx := context.Background()
 
-		stcService, err := stc.NewStcService(ctx, keyFilePath, chatGPTAPIKey)
-		if err != nil {
-			panic(err)
-		}
+	stcService, err = stc.NewStcService(ctx, keyFilePath, chatGPTAPIKey)
+	if err != nil {
+		panic(err)
+	}
 
-		transcript, err := stcService.TranscribeAudio(ctx, "sampleaudio/audiofile.mp3")
-		if err != nil {
-			log.Fatalf("Error transcribing audio: %v", err)
-		}
-
-		chatResponse, err := stcService.SendChatRequest(ctx, transcript)
-		if err != nil {
-			log.Fatalf("Error sending chat request: %v", err)
-		}
-
-		fmt.Println("ChatGPT Response:", chatResponse)
-	*/
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Logger())
@@ -53,6 +46,9 @@ func main() {
 		Root:   "static",
 		Browse: true,
 	}))
+	e.GET("/get-records", getRecordsHandler)
+	e.GET("/process-record/:elementName", processRecordHandler)
+	e.DELETE("/remove-element/:elementName", removeRecordHandler)
 	e.GET("/ws", handleWebSocket)
 	e.Start(":8080")
 }
@@ -91,6 +87,51 @@ func handleWebSocket(c echo.Context) error {
 	}
 
 	return nil
+}
+
+func getRecordsHandler(c echo.Context) error {
+	folderPath := "sampleaudio"
+	fileInfoList, err := ioutil.ReadDir(folderPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create a slice to store the file names
+	fileNames := make([]string, 0)
+
+	// Iterate through the list of file info and extract file names
+	for _, fileInfo := range fileInfoList {
+		if !fileInfo.IsDir() {
+			fileNames = append(fileNames, fileInfo.Name())
+		}
+	}
+	return c.JSON(http.StatusOK, fileNames)
+}
+
+func removeRecordHandler(c echo.Context) error {
+	recordName := c.Param("elementName")
+	folderPath := "./sampleaudio"
+
+	filePath := filepath.Join(folderPath, recordName)
+
+	err := os.Remove(filePath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+	}
+	response := map[string]interface{}{"message": "Record removed", "element": recordName}
+	return c.JSON(http.StatusOK, response)
+}
+
+func processRecordHandler(c echo.Context) error {
+	recordName := c.Param("elementName")
+
+	stt, chatrsp, err := stcsvc.TranscribeSpeecToChat(*stcService, recordName)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+	}
+
+	response := map[string]interface{}{"stt": stt, "analysis": chatrsp, "element": recordName}
+	return c.JSON(http.StatusOK, response)
 }
 
 func getUUID() string {

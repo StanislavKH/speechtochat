@@ -2,14 +2,90 @@
 <html>
 <head>
     <title>Audio Recorder</title>
-    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/style.css?pp">
 </head>
 <body>
-    <h1>Audio Recorder</h1>
-    
-    <button id="startButton">Start Recording</button>
-    <button id="stopButton" disabled>Stop Recording</button>  
+    <div id="container">
+    <h1>Audio chat recorder</h1>
+    <div id="buttons" class="media-recorder-controls">
+        <button id="startButton" class="media-recorder-button">Start Recording</button>
+        <button id="stopButton" class="media-recorder-button" disabled>Stop Recording</button>
+    </div>
+    <h2>Records list:</h2>
+    <div id="elementList">
+        <!-- Elements will be dynamically added here -->
+    </div>
+    <h2>Analysis of the text related to audio record:</h2>
+    <div id="analyzedTextArea">
+        <!-- Text be dynamically added here -->
+    </div>
+    </div>  
     <script>
+        function fetchAndDisplayElements() {
+        const elementListContainer = document.getElementById("elementList");
+        elementListContainer.innerHTML = ""; // Clear existing content
+
+        fetch("/get-records")
+            .then(response => response.json())
+            .then(elements => {
+                // Create and append HTML elements, buttons, and remove buttons for each element in the array
+                elements.forEach(element => {
+                    const elementItem = document.createElement("div");
+                    elementItem.classList.add("element-item");
+                    elementItem.innerHTML = `
+                        <span>${element}</span>
+                        <div class="element-buttons">
+                            <button class="call-button">Process</button>
+                            <button class="remove-button">Remove</button>
+                        </div>
+                    `;
+
+                    const callButton = elementItem.querySelector(".call-button");
+                    callButton.addEventListener("click", () => {
+                        processElement(element)
+                        console.log(`Calling endpoint for processing ${element}`);
+                    });
+
+                    const removeButton = elementItem.querySelector(".remove-button");
+                    removeButton.addEventListener("click", () => {
+                        removeElement(element);
+                        console.log(`Calling endpoint for removing ${element}`);
+                    });
+
+                    elementListContainer.appendChild(elementItem);
+                });
+            })
+            .catch(error => console.error("Error fetching elements:", error));
+    }
+
+    function removeElement(element) {
+        fetch(`/remove-element/${encodeURIComponent(element)}`, { method: "DELETE" })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Element removed:", element);
+                // Refresh the list of elements after removal
+                fetchAndDisplayElements();
+            })
+            .catch(error => console.error("Error removing element:", error));
+    }
+
+    function processElement(element) {
+        fetch(`/process-record/${encodeURIComponent(element)}`, { method: "GET" })
+            .then(response => response.json())
+            .then(data => {
+                analyzedTextArea.innerHTML = JSON.stringify(data, null, 2);
+                console.log("Record processed:", element);
+                // Refresh the list of record after processing
+                fetchAndDisplayElements();
+            })
+            .catch(error => console.error("Error removing element:", error));
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // Fetch and display elements when the page loads
+        fetchAndDisplayElements();
+    });
+
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
 
@@ -67,8 +143,10 @@
             console.log('Stopping recording...');
             mediaRecorder.stop();
             startButton.disabled = false;
-            stopButton.disabled = true;
+            stopButton.disabled = true; 
+            fetchAndDisplayElements();
         });
     </script>
+    
 </body>
 </html>
